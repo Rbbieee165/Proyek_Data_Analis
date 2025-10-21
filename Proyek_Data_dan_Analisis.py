@@ -1,5 +1,6 @@
 # Proyek_Data_dan_Analisis.py
-# Versi revisi - fix load data & tampilkan analisis penuh
+# Versi final - fix indikator World Bank & tampilkan analisis penuh
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 
 st.set_page_config(page_title="Analisis GDP & Unemployment", layout="wide")
 
-# --- Konfigurasi nama file dataset ---
+# --- Nama file dataset ---
 DATA_PATH = "API_IDN_DS2_en_csv_v2_893274.csv"
 
 # --- Fungsi untuk memuat dataset ---
@@ -22,12 +23,12 @@ def load_data():
     try:
         df = pd.read_csv(
             DATA_PATH,
-            skiprows=4,           # lewati baris metadata World Bank
-            on_bad_lines="skip",  # lewati baris rusak
+            skiprows=4,           # lewati metadata World Bank
+            on_bad_lines="skip",
             low_memory=False,
             encoding="utf-8"
         )
-        df = df.dropna(axis=1, how="all")  # hapus kolom kosong
+        df = df.dropna(axis=1, how="all")
         df.columns = [c.strip() for c in df.columns]
         return df
     except FileNotFoundError:
@@ -37,7 +38,7 @@ def load_data():
         st.error(f"❌ Gagal memuat data: {e}")
         return None
 
-# --- Fungsi pembuat fitur lag untuk forecasting sederhana ---
+# --- Buat fitur lag sederhana ---
 def create_lag_features(df, col, lags=3):
     df = df.copy()
     for lag in range(1, lags + 1):
@@ -45,7 +46,7 @@ def create_lag_features(df, col, lags=3):
     df = df.dropna().reset_index(drop=True)
     return df
 
-# --- Fungsi pelatihan model dan prediksi ---
+# --- Pelatihan model dan prediksi ---
 def train_and_predict(df, target_col, model_type="rf", test_size=0.2, random_state=42):
     df = df.copy().dropna(subset=[target_col])
     df = create_lag_features(df, target_col, lags=3)
@@ -66,7 +67,7 @@ def train_and_predict(df, target_col, model_type="rf", test_size=0.2, random_sta
     rmse = mean_squared_error(y_test, y_pred, squared=False)
     r2 = r2_score(y_test, y_pred)
 
-    # forecasting sederhana
+    # Forecasting sederhana
     last_row = df.iloc[-1:].copy()
     preds_future = []
     for _ in range(6):
@@ -89,20 +90,24 @@ def train_and_predict(df, target_col, model_type="rf", test_size=0.2, random_sta
         "feature_cols": feature_cols,
     }
 
-# --- Fungsi visualisasi ---
-def plot_trend(df, col):
+# --- Visualisasi ---
+def plot_trend(df, col, label):
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(df.index, df[col], marker="o", linewidth=1)
-    ax.set_title(f"Tren Historis - {col}")
-    ax.set_xlabel("Index")
-    ax.set_ylabel(col)
+    ax.plot(df["Year"], df[col], marker="o", linewidth=1, label=label)
+    ax.set_title(f"Tren Historis - {label}")
+    ax.set_xlabel("Tahun")
+    ax.set_ylabel(label)
+    ax.legend()
     st.pyplot(fig)
 
 def plot_heatmap(df):
     num = df.select_dtypes(include=[np.number])
+    if num.shape[1] < 2:
+        st.warning("Tidak cukup kolom numerik untuk membuat heatmap.")
+        return
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(num.corr(), annot=True, fmt=".2f", ax=ax)
-    ax.set_title("Heatmap Korelasi (variabel numerik)")
+    ax.set_title("Heatmap Korelasi (Variabel Numerik)")
     st.pyplot(fig)
 
 def show_feature_importance(model, feature_cols, model_type):
@@ -123,10 +128,16 @@ def show_feature_importance(model, feature_cols, model_type):
 
 # --- UI Aplikasi ---
 st.sidebar.title("Pengaturan")
-var_choice = st.sidebar.selectbox("Pilih Variabel", ["GDP_Growth", "Unemployment"])
+
+indicator_choice = st.sidebar.selectbox(
+    "Pilih indikator untuk analisis:",
+    ["GDP growth (annual %)", "Unemployment, total (% of total labor force)"]
+)
+
 uploaded = st.sidebar.file_uploader("Upload file CSV (opsional)", type=["csv"])
 st.sidebar.markdown("---")
 
+# --- Load data ---
 if uploaded is not None:
     df = pd.read_csv(uploaded, skiprows=4, on_bad_lines="skip", low_memory=False)
 else:
@@ -136,47 +147,63 @@ else:
 if df is None:
     st.stop()
 
-st.title("📈 Dashboard Analisis: GDP Growth & Unemployment")
-st.markdown("Analisis tren, korelasi, prediksi, dan feature importance menggunakan Random Forest dan Ridge Regression.")
-
-st.write("### Preview Data")
-st.dataframe(df.head())
-
-if var_choice not in df.columns:
-    st.error(f"Kolom target '{var_choice}' tidak ditemukan. Kolom yang tersedia: {', '.join(df.columns)}")
+# --- Filter data berdasarkan indikator ---
+df_filtered = df[df["Indicator Name"] == indicator_choice]
+if df_filtered.empty:
+    st.error(f"Tidak menemukan indikator '{indicator_choice}' di dataset.")
     st.stop()
 
-st.subheader(f"Analisis untuk: {var_choice}")
-plot_trend(df, var_choice)
-plot_heatmap(df)
+# --- Ubah dari wide ke long ---
+df_long = df_filtered.melt(
+    id_vars=["Country Name", "Country Code", "Indicator Name", "Indicator Code"],
+    var_name="Year",
+    value_name="Value"
+)
+df_long["Year"] = pd.to_numeric(df_long["Year"], errors="coerce")
+df_long = df_long.dropna(subset=["Value"])
+df_long = df_long.reset_index(drop=True)
+df_long.rename(columns={"Value": "Target"}, inplace=True)
 
-st.write("#### Pelatihan Model & Prediksi")
-model_type = "rf" if var_choice == "GDP_Growth" else "ridge"
-with st.spinner("Melatih model..."):
-    result = train_and_predict(df, var_choice, model_type=model_type)
+# --- Tampilan utama ---
+st.title("📈 Dashboard Analisis: GDP Growth & Unemployment")
+st.write(f"### Indikator: {indicator_choice}")
+st.dataframe(df_long.head())
 
-st.success("✅ Pelatihan selesai!")
-st.write(f"**Model**: {'Random Forest' if model_type == 'rf' else 'Ridge Regression'}")
+# --- Visualisasi tren dan korelasi ---
+plot_trend(df_long, "Target", indicator_choice)
+plot_heatmap(df_long)
+
+# --- Analisis & Forecasting ---
+with st.spinner("🔮 Melatih model dan membuat prediksi..."):
+    df_feat = create_lag_features(df_long[["Target"]], "Target", lags=3)
+    model_type = "rf" if "GDP" in indicator_choice else "ridge"
+    result = train_and_predict(df_feat, "Target", model_type=model_type)
+
+st.success("✅ Analisis selesai!")
+st.write(f"**Model:** {'Random Forest' if model_type == 'rf' else 'Ridge Regression'}")
 st.write(f"**RMSE:** {result['rmse']:.4f} | **R²:** {result['r2']:.4f}")
 
-# tampilkan hasil prediksi
+# --- Hasil prediksi ---
 comp = pd.DataFrame({"Actual": result["y_test"], "Predicted": result["y_pred"]})
 st.write("##### Perbandingan Hasil (Test Set)")
 st.dataframe(comp.head(20))
 
 fig, ax = plt.subplots(figsize=(10, 4))
-ax.plot(comp["Actual"], label="Actual", marker="o")
-ax.plot(comp["Predicted"], label="Predicted", marker="x")
+ax.plot(comp["Actual"].values, label="Actual", marker="o")
+ax.plot(comp["Predicted"].values, label="Predicted", marker="x")
 ax.legend()
 ax.set_title("Perbandingan Aktual vs Prediksi")
 st.pyplot(fig)
 
-# tampilkan forecasting masa depan
+# --- Forecast ke depan ---
 st.write("#### Prediksi ke Depan (Forecasting Sederhana)")
 future_df = pd.DataFrame({"Step": range(1, len(result["preds_future"]) + 1), "Predicted": result["preds_future"]})
 st.dataframe(future_df)
+
 show_feature_importance(result["model"], result["feature_cols"], model_type)
 
 st.write("---")
-st.info("Catatan: Metode forecasting ini menggunakan fitur lag dari target dan model ML non-sequence. "
-        "Untuk hasil yang lebih akurat pada data deret waktu, pertimbangkan model khusus seperti ARIMA, Prophet, atau LSTM.")
+st.info(
+    "Catatan: Metode forecasting ini menggunakan fitur lag dari target dan model ML non-sequence. "
+    "Untuk hasil yang lebih akurat, gunakan model khusus time-series seperti ARIMA, Prophet, atau LSTM."
+)
