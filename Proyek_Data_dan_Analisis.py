@@ -15,20 +15,16 @@ import os
 
 st.set_page_config(page_title="Analisis GDP & Unemployment", layout="wide")
 
-DATA_PATH = None
+st.set_page_config(page_title="Analisis GDP & Unemployment", layout="wide")
 
+DATA_PATH = "API_IDN_DS2_en_csv_v2_893274.csv"  # nama file dataset kamu
+
+@st.cache_data
 def load_data():
-    if DATA_PATH and os.path.exists(DATA_PATH):
-        df = pd.read_csv(DATA_PATH)
-        return df
-    for p in os.listdir("/mnt/data"):
-        if p.lower().endswith(".csv"):
-            try:
-                return pd.read_csv(os.path.join("/mnt/data", p))
-            except Exception:
-                pass
-    st.error("Tidak menemukan file CSV otomatis. Silakan upload file CSV di bagian sidebar atau letakkan file CSV di folder aplikasi.")
-    return None
+    df = pd.read_csv(DATA_PATH)
+    return df
+
+
 
 def create_lag_features(df, col, lags=3):
     df = df.copy()
