@@ -57,8 +57,9 @@ def train_and_predict(df, target_col="Target", model_type="rf", test_size=0.2, r
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    rmse = mean_squared_error(y_test, y_pred, squared=False)
+    rmse = mean_squared_error(y_test, y_pred) ** 0.5
     r2 = r2_score(y_test, y_pred)
+
 
     # Forecast sederhana
     last_row = df.iloc[-1:].copy()
