@@ -21,17 +21,34 @@ DATA_PATH = "API_IDN_DS2_en_csv_v2_893274.csv"  # nama file dataset kamu
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv(DATA_PATH)
-    return df
+    try:
+        df = pd.read_csv(
+            "API_IDN_DS2_en_csv_v2_893274.csv",
+            skiprows=4,          # lewati baris metadata World Bank
+            on_bad_lines="skip", # lewati baris rusak
+            low_memory=False,    # hindari parsing parsial
+            encoding="utf-8"     # jaga karakter non-ASCII
+        )
 
+        # bersihkan kolom yang tidak perlu (opsional)
+        df = df.dropna(axis=1, how="all")
+        df = df.rename(columns={"Country Name": "country", "Indicator Name": "indicator"})
+        return df
 
+    except Exception as e:
+        st.error(f"Gagal memuat data: {e}")
+        return None
 
-def create_lag_features(df, col, lags=3):
-    df = df.copy()
-    for lag in range(1, lags+1):
-        df[f"{{col}}_lag{{lag}}"] = df[col].shift(lag)
-    df = df.dropna().reset_index(drop=True)
-    return df
+with st.spinner("📊 Sedang memuat data, mohon tunggu sebentar..."):
+    df = load_data()
+
+if df is not None:
+    st.success("✅ Data berhasil dimuat!")
+    st.write("Ukuran data:", df.shape)
+    st.dataframe(df.head())
+else:
+    st.error("❌ Tidak bisa memuat data, periksa file CSV.")
+
 
 def train_and_predict(df, target_col, model_type="rf", test_size=0.2, random_state=42):
     df2 = df.copy()
