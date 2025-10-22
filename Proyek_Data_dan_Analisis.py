@@ -124,27 +124,27 @@ if var_choice == "GDP Growth":
     st.subheader("Prediksi GDP Growth 2024–2026")
     st.dataframe(df_future)
 
-    # Visualisasi tren aktual + prediksi GDP Growth
-st.subheader("Tren GDP Growth Aktual dan Prediksi (2010–2026)")
-fig, ax = plt.subplots(figsize=(10, 5))
+        # Visualisasi tren aktual + prediksi GDP Growth
+    st.subheader("Tren GDP Growth Aktual dan Prediksi (2010–2026)")
+    fig, ax = plt.subplots(figsize=(10, 5))
 
-# Plot data aktual
-ax.plot(df_final["Year"], df_final["GDP_Growth"], marker='o', label="Aktual", color='tab:blue')
+    # Plot data aktual
+    ax.plot(df_final["Year"], df_final["GDP_Growth"], marker='o', label="Aktual", color='tab:blue')
 
-# Plot hasil prediksi masa depan
-ax.plot(df_future["Year"], df_future["GDP_Growth_Predicted"],
-        marker='x', linestyle='--', color='red', label="Prediksi (2024–2026)")
+    # Plot hasil prediksi masa depan
+    ax.plot(df_future["Year"], df_future["GDP_Growth_Predicted"],
+            marker='x', linestyle='--', color='red', label="Prediksi (2024–2026)")
 
-# Tambahkan garis vertikal pembatas
-ax.axvline(2023, color='gray', linestyle='--', label="Batas Prediksi")
+    # Tambahkan garis vertikal pembatas
+    ax.axvline(2023, color='gray', linestyle='--', label="Batas Prediksi")
 
-# Label dan grid
-ax.set_title("Tren GDP Growth Indonesia (2010–2026)")
-ax.set_xlabel("Tahun")
-ax.set_ylabel("GDP Growth (%)")
-ax.legend()
-ax.grid(True)
-st.pyplot(fig)
+    # Label dan grid
+    ax.set_title("Tren GDP Growth Indonesia (2010–2026)")
+    ax.set_xlabel("Tahun")
+    ax.set_ylabel("GDP Growth (%)")
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
 
 
     # Evaluasi
