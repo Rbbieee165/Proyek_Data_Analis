@@ -310,3 +310,43 @@ elif var_choice == "Unemployment":
     ax.set_title("Tren Unemployment Indonesia (2010–2026)")
     ax.grid(True)
     st.pyplot(fig)
+
+    # ==============================
+# Feature Importance Random Forest - Unemployment (2017–2023)
+# ==============================
+    from sklearn.ensemble import RandomForestRegressor
+
+    st.subheader("Feature Importance (Random Forest) | 2017–2023")
+
+# Ambil model Random Forest untuk Unemployment (latih dengan seluruh data 2010–2023)
+    X_full = df_model[["Labor_Participation", "Employment_Industry", "GDP_Growth", "Investment", "Trade_Openness"]]
+    y_full = df_model["Unemployment"]
+
+    rf_unemp = RandomForestRegressor(n_estimators=300, max_depth=6, random_state=42)
+    rf_unemp.fit(X_full, y_full)
+
+# Ambil subset 2017–2023
+    df_focus = df_final[df_final["Year"].between(2017, 2023)]
+    X_focus = df_focus[["Labor_Participation", "Employment_Industry", "GDP_Growth", "Investment", "Trade_Openness"]]
+    y_focus = df_focus["Unemployment"]
+
+# Feature importance
+    rf_feat_imp = rf_unemp.feature_importances_
+    features = X_focus.columns
+
+    df_importance = pd.DataFrame({
+        "Feature": features,
+        "Importance": rf_feat_imp
+    }).sort_values(by="Importance", ascending=False)
+
+# Tampilkan tabel
+    st.dataframe(df_importance)
+
+# Visualisasi bar chart
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.barplot(x="Importance", y="Feature", data=df_importance, palette="magma", ax=ax)
+    ax.set_title("Feature Importance Unemployment (2017–2023) - Random Forest")
+    ax.set_xlabel("Importance")
+    ax.set_ylabel("Fitur")
+    st.pyplot(fig)
+
