@@ -202,7 +202,7 @@ if var_choice == "GDP Growth":
     ax.barh(importance_df["Feature"], importance_df["Importance"], color="skyblue")
     ax.set_xlabel("Permutation Importance")
     ax.set_ylabel("Fitur")
-    ax.set_title("Feature Importance (2017–2023) | Model 2010–2023")
+    ax.set_title("Feature Importance / Faktor Berpengaruh (2017–2023)")
     ax.invert_yaxis()
     st.pyplot(fig)
 
@@ -345,7 +345,7 @@ elif var_choice == "Unemployment":
 # Visualisasi bar chart
     fig, ax = plt.subplots(figsize=(8, 5))
     sns.barplot(x="Importance", y="Feature", data=df_importance, palette="magma", ax=ax)
-    ax.set_title("Feature Importance Unemployment (2017–2023) - Random Forest")
+    ax.set_title("Feature Importance Unemployment / Faktor Berpengaruh (2017–2023)")
     ax.set_xlabel("Importance")
     ax.set_ylabel("Fitur")
     st.pyplot(fig)
