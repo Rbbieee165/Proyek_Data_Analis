@@ -157,16 +157,55 @@ if var_choice == "GDP Growth":
     st.write(f"MAE: {mae:.3f}")
     st.write(f"RMSE: {rmse:.3f}")
 
-    # Feature Importance
-    importance = pd.DataFrame({
-        "Feature": X.columns,
-        "Importance": rf_model.feature_importances_
-    }).sort_values(by="Importance", ascending=False)
-    st.subheader("Feature Importance")
-    st.dataframe(importance)
-    fig, ax = plt.subplots(figsize=(7, 4))
-    sns.barplot(x="Importance", y="Feature", data=importance, palette="viridis", ax=ax)
-    st.pyplot(fig)
+# ============================================================
+# Feature Importance (Permutation Importance 2017–2023)
+# ============================================================
+from sklearn.inspection import permutation_importance
+
+st.subheader("Feature Importance (2017–2023) | Model 2010–2023")
+
+# Siapkan model dari 2010–2023
+X_full = df_final[[
+    "Unemployment", "Inflation", "Investment",
+    "Labor_Participation", "Trade_Openness",
+    "Government_Expenditure", "Population_Growth"
+]]
+y_full = df_final["GDP_Growth"]
+
+rf_model_full = RandomForestRegressor(n_estimators=300, max_depth=6, random_state=42)
+rf_model_full.fit(X_full, y_full)
+
+# Filter data 2017–2023 untuk visualisasi importance
+df_focus = df_final[df_final["Year"].between(2017, 2023)]
+X_focus = df_focus[[
+    "Unemployment", "Inflation", "Investment",
+    "Labor_Participation", "Trade_Openness",
+    "Government_Expenditure", "Population_Growth"
+]]
+y_focus = df_focus["GDP_Growth"]
+
+# Hitung permutation importance
+perm_importance = permutation_importance(
+    rf_model_full, X_focus, y_focus, n_repeats=30, random_state=42
+)
+
+importance_df = pd.DataFrame({
+    "Feature": X_focus.columns,
+    "Importance": perm_importance.importances_mean
+}).sort_values(by="Importance", ascending=False)
+
+# Tampilkan tabel
+st.dataframe(importance_df)
+
+# Visualisasi diagram batang
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.barh(importance_df["Feature"], importance_df["Importance"], color="skyblue")
+ax.set_xlabel("Permutation Importance")
+ax.set_ylabel("Fitur")
+ax.set_title("Feature Importance (2017–2023) | Model 2010–2023")
+ax.invert_yaxis()
+st.pyplot(fig)
+
 
 
 # ==============================
