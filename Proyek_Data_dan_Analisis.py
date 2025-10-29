@@ -261,6 +261,20 @@ elif var_choice == "Unemployment":
     sns.heatmap(df_viz[numeric_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
     st.pyplot(fig)
 
+    # 🔹 Tambahan: Distribusi Variabel (Histogram + KDE)
+    # ==============================
+    st.subheader("Distribusi Variabel (2017–2023)")
+    plt.style.use("seaborn-v0_8-whitegrid")
+
+    for col in numeric_cols:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.histplot(df_viz[col], kde=True, bins=10, color="steelblue", ax=ax)
+        ax.set_title(f"Distribusi Variabel: {col} (2017–2023)", fontsize=12, fontweight='bold')
+        ax.set_xlabel(col)
+        ax.set_ylabel("Frekuensi")
+        ax.grid(True, linestyle="--", alpha=0.7)
+        st.pyplot(fig)
+
     # Ridge Regression
     df_model = df_final[df_final["Year"].between(2010, 2023)]
     X = df_model[["Labor_Participation", "Employment_Industry", "GDP_Growth", "Investment", "Trade_Openness"]]
