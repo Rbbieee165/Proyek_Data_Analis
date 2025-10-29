@@ -8,67 +8,12 @@ from sklearn.linear_model import Ridge
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.inspection import permutation_importance
 
-# ====================================================
-# ⚙️ CONFIG PAGE
-# ====================================================
-st.set_page_config(
-    page_title="Analisis Ekonomi Indonesia",
-    layout="wide",
-    page_icon="📊"
-)
+st.set_page_config(page_title="Analisis GDP & Unemployment", layout="wide")
 
-# ====================================================
-# 🎨 CSS FIX: SIDEBAR + STYLE MODERN
-# ====================================================
-st.markdown("""
-<style>
-/* Main background */
-.main {
-    background-color: #f8fafc;
-}
-
-/* Sidebar area */
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    color: white !important;
-}
-
-/* Sidebar text color */
-[data-testid="stSidebar"] * {
-    color: white !important;
-    font-family: 'Poppins', sans-serif;
-}
-
-/* Titles and headers */
-h1, h2, h3, h4 {
-    font-family: 'Poppins', sans-serif;
-    color: #0f172a;
-}
-
-/* Dataframe style */
-.dataframe {
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-}
-
-/* Divider */
-hr {
-    border: 1px solid #cbd5e1;
-}
-
-/* Metric cards */
-[data-testid="stMetricValue"] {
-    color: #2563eb;
-    font-weight: 700;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ====================================================
-# 📂 LOAD DATA
-# ====================================================
+# ==============================
+# Fungsi untuk memuat data
+# ==============================
 @st.cache_data
 def load_data():
     df = pd.read_csv("API_IDN_DS2_en_csv_v2_893274.csv", skiprows=4)
@@ -78,20 +23,16 @@ def load_data():
 
 df = load_data()
 
-# ====================================================
-# 🧭 SIDEBAR NAVIGATION
-# ====================================================
-st.sidebar.title("📊 Dashboard Ekonomi Indonesia")
-st.sidebar.markdown("### Pilih Analisis")
-menu = st.sidebar.radio("", ["GDP Growth", "Unemployment"])
+# ==============================
+# Pilihan Variabel di Sidebar
+# ==============================
+st.sidebar.title("🔍 Pilih Analisis")
+var_choice = st.sidebar.selectbox("Pilih variabel:", ["GDP Growth", "Unemployment"])
 
-st.sidebar.markdown("---")
-st.sidebar.caption("Dibuat oleh [Nama Kamu] 💡")
-
-# ====================================================
-# 📈 GDP GROWTH ANALYSIS
-# ====================================================
-if menu == "GDP Growth":
+# ==============================
+# Analisis GDP Growth
+# ==============================
+if var_choice == "GDP Growth":
     st.title("📈 Analisis Pertumbuhan Ekonomi (GDP Growth) Indonesia")
 
     indicators = [
@@ -120,68 +61,183 @@ if menu == "GDP Growth":
     }, inplace=True)
     df_final = df_final.dropna()
 
-    # Subset untuk visualisasi
+    # Visualisasi tren dan korelasi
     df_viz = df_final[df_final["Year"].between(2017, 2023)]
     numeric_cols = [
         "Unemployment", "GDP_Growth", "Inflation", "Investment",
         "Labor_Participation", "Trade_Openness", "Government_Expenditure", "Population_Growth"
     ]
 
-    st.subheader("📊 Tren Indikator Ekonomi (2017–2023)")
+    # 🔹 Visualisasi Tren GDP Growth (Subplot Per Variabel)
+    st.subheader("Tren Indikator Ekonomi Indonesia (2017–2023)")
+    
     fig, axes = plt.subplots(len(numeric_cols), 1, figsize=(12, 16))
     for i, col in enumerate(numeric_cols):
         axes[i].plot(df_viz["Year"], df_viz[col], marker='o', color='tab:blue', linewidth=2)
         axes[i].set_title(col, fontsize=12, fontweight='bold')
+        axes[i].set_ylabel("Persentase (%)")
         axes[i].grid(True, linestyle="--", alpha=0.7)
+        axes[i].set_xticks(df_viz["Year"].astype(int))
+    plt.xlabel("Tahun", fontsize=12)
+    plt.suptitle("Tren Indikator Ekonomi Indonesia (2017–2023)", fontsize=14, fontweight='bold', y=1.02)
     plt.tight_layout()
     st.pyplot(fig)
-    st.divider()
 
-    st.subheader("🔥 Korelasi Antar Variabel (2017–2023)")
+
+    st.subheader("Korelasi antar variabel (2017–2023)")
     fig, ax = plt.subplots(figsize=(9, 6))
     sns.heatmap(df_viz[numeric_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
     st.pyplot(fig)
-    st.divider()
 
-    st.subheader("📈 Distribusi Variabel (2017–2023)")
+    st.subheader("Distribusi Variabel (2017–2023)")
+    plt.style.use("seaborn-v0_8-whitegrid")
+
     for col in numeric_cols:
         fig, ax = plt.subplots(figsize=(6, 4))
         sns.histplot(df_viz[col], kde=True, bins=15, color="steelblue", ax=ax)
-        ax.set_title(f"Distribusi: {col}", fontsize=12, fontweight='bold')
-        st.pyplot(fig)
-    st.divider()
+        ax.set_title(f"Distribusi Variabel: {col} (2017–2023)", fontsize=12, fontweight='bold')
+        ax.set_xlabel(col)
+        ax.set_ylabel("Frekuensi")
+        ax.grid(True, linestyle="--", alpha=0.7)
+        st.pyplot(fig)    
 
-    # === Model Random Forest
+    # Model Random Forest
     df_model = df_final[df_final["Year"].between(2010, 2023)]
-    X = df_model[[col for col in numeric_cols if col != "GDP_Growth"]]
+    X = df_model[[
+        "Unemployment", "Inflation", "Investment", "Labor_Participation",
+        "Trade_Openness", "Government_Expenditure", "Population_Growth"
+    ]]
     y = df_model["GDP_Growth"]
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    rf = RandomForestRegressor(n_estimators=300, max_depth=6, random_state=42)
-    rf.fit(X_train, y_train)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-    y_pred = rf.predict(X_test)
+    rf_model = RandomForestRegressor(n_estimators=300, random_state=42, max_depth=6)
+    rf_model.fit(X_train, y_train)
+    y_pred = rf_model.predict(X_test)
+    y_pred_full = rf_model.predict(X)
+
+    # Visualisasi hasil
+    st.subheader("Prediksi vs Aktual (2010–2023)")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(df_model["Year"], y, label="Aktual", marker='o')
+    ax.plot(df_model["Year"], y_pred_full, label="Prediksi", linestyle='--', marker='x')
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+
+    # Forecast 2024–2026
+    recent_years = df_final[df_final["Year"].between(2021, 2023)]
+    cols = ["Unemployment", "Inflation", "Investment", "Labor_Participation",
+            "Trade_Openness", "Government_Expenditure", "Population_Growth"]
+    growth_rates = {col: recent_years[col].pct_change().mean() for col in cols}
+    future_years = [2024, 2025, 2026]
+    last_values = recent_years.iloc[-1][cols]
+    future_X = pd.DataFrame(columns=cols)
+    for i, year in enumerate(future_years):
+        row = last_values * [(1 + growth_rates[c])**(i+1) for c in cols]
+        future_X.loc[i] = row
+    future_pred = rf_model.predict(future_X)
+
+    df_future = pd.DataFrame({"Year": future_years, "GDP_Growth_Predicted": future_pred})
+    st.subheader("Prediksi GDP Growth 2024–2026")
+    st.dataframe(df_future)
+
+        # Visualisasi tren aktual + prediksi GDP Growth
+    st.subheader("Tren GDP Growth Aktual dan Prediksi (2010–2026)")
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    # Plot data aktual
+    ax.plot(df_final["Year"], df_final["GDP_Growth"], marker='o', label="Aktual", color='tab:blue')
+
+    # Plot hasil prediksi masa depan
+    ax.plot(df_future["Year"], df_future["GDP_Growth_Predicted"],
+            marker='x', linestyle='--', color='red', label="Prediksi (2024–2026)")
+
+    # Tambahkan garis vertikal pembatas
+    ax.axvline(2023, color='gray', linestyle='--', label="Batas Prediksi")
+
+    # Label dan grid
+    ax.set_title("Tren GDP Growth Indonesia (2010–2026)")
+    ax.set_xlabel("Tahun")
+    ax.set_ylabel("GDP Growth (%)")
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+
+
+    # Evaluasi
     mae = mean_absolute_error(y_test, y_pred)
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     r2 = r2_score(y_test, y_pred)
 
-    st.subheader("🤖 Evaluasi Model Random Forest")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("R²", f"{r2:.3f}")
-    c2.metric("MAE", f"{mae:.3f}")
-    c3.metric("RMSE", f"{rmse:.3f}")
-    st.divider()
+    st.subheader("Evaluasi Model Random Forest")
+    st.write(f"R² (Test): {r2:.3f}")
+    st.write(f"MAE: {mae:.3f}")
+    st.write(f"RMSE: {rmse:.3f}")
 
-# ====================================================
-# 📉 UNEMPLOYMENT ANALYSIS
-# ====================================================
-elif menu == "Unemployment":
+# ============================================================
+    # Feature Importance (Permutation Importance 2017–2023)
+# ============================================================
+    from sklearn.inspection import permutation_importance
+
+    st.subheader("Feature Importance (2017–2023) | Model 2010–2023")
+
+    # Siapkan model dari 2010–2023
+    X_full = df_final[[
+    "Unemployment", "Inflation", "Investment",
+    "Labor_Participation", "Trade_Openness",
+    "Government_Expenditure", "Population_Growth"
+    ]]
+    y_full = df_final["GDP_Growth"]
+
+    rf_model_full = RandomForestRegressor(n_estimators=300, max_depth=6, random_state=42)
+    rf_model_full.fit(X_full, y_full)
+
+    # Filter data 2017–2023 untuk visualisasi importance
+    df_focus = df_final[df_final["Year"].between(2017, 2023)]
+    X_focus = df_focus[[
+        "Unemployment", "Inflation", "Investment",
+        "Labor_Participation", "Trade_Openness",
+        "Government_Expenditure", "Population_Growth"
+    ]]
+    y_focus = df_focus["GDP_Growth"]
+
+    # Hitung permutation importance
+    perm_importance = permutation_importance(
+        rf_model_full, X_focus, y_focus, n_repeats=30, random_state=42
+    )
+
+    importance_df = pd.DataFrame({
+        "Feature": X_focus.columns,
+        "Importance": perm_importance.importances_mean
+    }).sort_values(by="Importance", ascending=False)
+
+    # Tampilkan tabel
+    st.dataframe(importance_df)
+
+    # Visualisasi diagram batang
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.barh(importance_df["Feature"], importance_df["Importance"], color="skyblue")
+    ax.set_xlabel("Permutation Importance")
+    ax.set_ylabel("Fitur")
+    ax.set_title("Feature Importance / Faktor Berpengaruh (2017–2023)")
+    ax.invert_yaxis()
+    st.pyplot(fig)
+
+
+
+# ==============================
+# Analisis Unemployment
+# ==============================
+elif var_choice == "Unemployment":
     st.title("📉 Analisis Tingkat Pengangguran (Unemployment) Indonesia")
 
     indicators = [
-        "SL.UEM.TOTL.ZS", "SL.TLF.CACT.ZS", "SL.TLF.TOTL.IN", "SL.IND.EMPL.ZS",
+        "SL.TLF.CACT.ZS", "SL.TLF.TOTL.IN", "SL.IND.EMPL.ZS",
         "NY.GDP.MKTP.KD.ZG", "NE.GDI.TOTL.ZS", "NE.TRD.GNFS.ZS",
-        "SE.TER.ENRR", "SP.POP.1564.TO.ZS"
+        "SE.TER.ENRR", "SP.POP.1564.TO.ZS", "SL.UEM.TOTL.ZS"
     ]
 
     df_unemp = df[(df["Country Code"] == "IDN") & (df["Indicator Code"].isin(indicators))]
@@ -206,25 +262,38 @@ elif menu == "Unemployment":
     }, inplace=True)
     df_final = df_final.dropna()
 
+    # Visualisasi tren dan korelasi
     df_viz = df_final[df_final["Year"].between(2017, 2023)]
     numeric_cols = ["Unemployment", "Labor_Participation", "Employment_Industry",
                     "GDP_Growth", "Investment", "Trade_Openness"]
 
-    st.subheader("📊 Tren Variabel (2017–2023)")
+    st.subheader("Tren Variabel Ekonomi (2017–2023)")
     fig, axes = plt.subplots(len(numeric_cols), 1, figsize=(10, 16))
     for i, col in enumerate(numeric_cols):
-        axes[i].plot(df_viz["Year"], df_viz[col], marker='o', color='tab:blue')
+        axes[i].plot(df_viz["Year"], df_viz[col], marker='o')
         axes[i].set_title(col)
         axes[i].grid(True)
     plt.tight_layout()
     st.pyplot(fig)
-    st.divider()
 
-    st.subheader("🔥 Korelasi Antar Variabel (2017–2023)")
+    st.subheader("Korelasi antar variabel (2017–2023)")
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(df_viz[numeric_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
     st.pyplot(fig)
-    st.divider()
+
+    # 🔹 Tambahan: Distribusi Variabel (Histogram + KDE)
+    # ==============================
+    st.subheader("Distribusi Variabel (2017–2023)")
+    plt.style.use("seaborn-v0_8-whitegrid")
+
+    for col in numeric_cols:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        sns.histplot(df_viz[col], kde=True, bins=10, color="steelblue", ax=ax)
+        ax.set_title(f"Distribusi Variabel: {col} (2017–2023)", fontsize=12, fontweight='bold')
+        ax.set_xlabel(col)
+        ax.set_ylabel("Frekuensi")
+        ax.grid(True, linestyle="--", alpha=0.7)
+        st.pyplot(fig)
 
     # Ridge Regression
     df_model = df_final[df_final["Year"].between(2010, 2023)]
@@ -235,28 +304,83 @@ elif menu == "Unemployment":
     X_scaled = scaler.fit_transform(X)
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-    ridge = Ridge(alpha=1.0)
-    ridge.fit(X_train, y_train)
-    y_pred = ridge.predict(X_test)
+    ridge_model = Ridge(alpha=1.0)
+    ridge_model.fit(X_train, y_train)
+    y_pred = ridge_model.predict(X_test)
 
+    # Evaluasi
     mae = mean_absolute_error(y_test, y_pred)
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     r2 = r2_score(y_test, y_pred)
+    st.subheader("Evaluasi Ridge Regression")
+    st.write(f"R² (Test): {r2:.3f}")
+    st.write(f"MAE: {mae:.3f}")
+    st.write(f"RMSE: {rmse:.3f}")
 
-    st.subheader("🤖 Evaluasi Ridge Regression")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("R²", f"{r2:.3f}")
-    c2.metric("MAE", f"{mae:.3f}")
-    c3.metric("RMSE", f"{rmse:.3f}")
-    st.divider()
+    # Forecasting sederhana
+    features = ["Labor_Participation", "Employment_Industry", "GDP_Growth", "Investment", "Trade_Openness"]
+    df_last2 = df_final[df_final["Year"].isin([2022, 2023])][features + ["Year"]].set_index("Year")
+    growth_rates = (df_last2.loc[2023] - df_last2.loc[2022]) / df_last2.loc[2022]
 
-# ====================================================
-# 🧾 FOOTER
-# ====================================================
-st.markdown("""
----
-<center>
-    <b>Dibuat dengan ❤️ oleh [Nama Kamu]</b><br>
-    Sumber data: World Bank Open Data (2024)
-</center>
-""", unsafe_allow_html=True)
+    pred_years = [2024, 2025, 2026]
+    pred_values = []
+    last_values = df_final[df_final["Year"] == 2023][features].iloc[0].values
+    for y in pred_years:
+        next_values = last_values * (1 + growth_rates.values)
+        next_unemp = ridge_model.predict(scaler.transform([next_values]))[0]
+        pred_values.append(next_unemp)
+        last_values = next_values
+
+    df_future = pd.DataFrame({"Year": pred_years, "Predicted_Unemployment": pred_values})
+    st.subheader("Prediksi Unemployment 2024–2026")
+    st.dataframe(df_future)
+
+    # Visualisasi tren aktual & prediksi
+    years_plot = list(df_final["Year"]) + pred_years
+    unemp_plot = list(df_final["Unemployment"]) + pred_values
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(years_plot, unemp_plot, marker='o', color='tab:blue')
+    ax.axvline(2023, color='red', linestyle='--')
+    ax.set_title("Tren Unemployment Indonesia (2010–2026)")
+    ax.grid(True)
+    st.pyplot(fig)
+
+    # ==============================
+# Feature Importance Random Forest - Unemployment (2017–2023)
+# ==============================
+    from sklearn.ensemble import RandomForestRegressor
+
+    st.subheader("Feature Importance (Random Forest) | 2017–2023")
+
+# Ambil model Random Forest untuk Unemployment (latih dengan seluruh data 2010–2023)
+    X_full = df_model[["Labor_Participation", "Employment_Industry", "GDP_Growth", "Investment", "Trade_Openness"]]
+    y_full = df_model["Unemployment"]
+
+    rf_unemp = RandomForestRegressor(n_estimators=300, max_depth=6, random_state=42)
+    rf_unemp.fit(X_full, y_full)
+
+# Ambil subset 2017–2023
+    df_focus = df_final[df_final["Year"].between(2017, 2023)]
+    X_focus = df_focus[["Labor_Participation", "Employment_Industry", "GDP_Growth", "Investment", "Trade_Openness"]]
+    y_focus = df_focus["Unemployment"]
+
+# Feature importance
+    rf_feat_imp = rf_unemp.feature_importances_
+    features = X_focus.columns
+
+    df_importance = pd.DataFrame({
+        "Feature": features,
+        "Importance": rf_feat_imp
+    }).sort_values(by="Importance", ascending=False)
+
+# Tampilkan tabel
+    st.dataframe(df_importance)
+
+# Visualisasi bar chart
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.barplot(x="Importance", y="Feature", data=df_importance, palette="magma", ax=ax)
+    ax.set_title("Feature Importance Unemployment / Faktor Berpengaruh (2017–2023)")
+    ax.set_xlabel("Importance")
+    ax.set_ylabel("Fitur")
+    st.pyplot(fig)
+
