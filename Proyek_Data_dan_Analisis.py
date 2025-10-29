@@ -68,13 +68,21 @@ if var_choice == "GDP Growth":
         "Labor_Participation", "Trade_Openness", "Government_Expenditure", "Population_Growth"
     ]
 
-    st.subheader("Tren Indikator Ekonomi (2017–2023)")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for col in numeric_cols:
-        ax.plot(df_viz["Year"], df_viz[col], marker='o', label=col)
-    ax.legend()
-    ax.grid(True)
+    # 🔹 Visualisasi Tren GDP Growth (Subplot Per Variabel)
+    st.subheader("Tren Indikator Ekonomi Indonesia (2017–2023)")
+    
+    fig, axes = plt.subplots(len(numeric_cols), 1, figsize=(12, 16))
+    for i, col in enumerate(numeric_cols):
+        axes[i].plot(df_viz["Year"], df_viz[col], marker='o', color='tab:blue', linewidth=2)
+        axes[i].set_title(col, fontsize=12, fontweight='bold')
+        axes[i].set_ylabel("Persentase (%)")
+        axes[i].grid(True, linestyle="--", alpha=0.7)
+        axes[i].set_xticks(df_viz["Year"].astype(int))
+    plt.xlabel("Tahun", fontsize=12)
+    plt.suptitle("Tren Indikator Ekonomi Indonesia (2017–2023)", fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
     st.pyplot(fig)
+
 
     st.subheader("Korelasi antar variabel (2017–2023)")
     fig, ax = plt.subplots(figsize=(9, 6))
