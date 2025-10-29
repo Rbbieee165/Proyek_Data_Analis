@@ -260,3 +260,4 @@ elif var_choice == "Unemployment":
     col1.metric("R² (Test)", f"{r2:.3f}")
     col2.metric("MAE", f"{mae:.3f}")
     col3.metric("RMSE", f"{rmse:.3f}")
+
